@@ -38,9 +38,19 @@ HOST_DIR="$(pwd)"
 UID_GID="$(id -u):$(id -g)"
 CONTAINER_NAME="qrun-$(basename "$HOST_DIR" | tr -c 'a-zA-Z0-9_' '_')"
 
+HOST_AWS_DIR="$HOME/.aws"
+HOST_LOCAL_DIR="$HOME/.local"
+
+# コンテナ内のユーザ名とホームディレクトリ
+CONTAINER_USER="ubuntu"
+CONTAINER_HOME="/home/${CONTAINER_USER}"
+
+
 docker run --rm -it \
   --name "$CONTAINER_NAME" \
   -v "${HOST_DIR}:${WORKDIR_IN_CONTAINER}" \
+  -v "${HOST_AWS_DIR}:${CONTAINER_HOME}/.aws" \
+  -v "${HOST_LOCAL_DIR}:${CONTAINER_HOME}/.local" \
   -w "${WORKDIR_IN_CONTAINER}" \
   --user "${UID_GID}" \
   "$IMAGE" "${CMD[@]}"
