@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# qrun-setup  ―  “quick run” 用の既定イメージをビルドして登録
+#
+#   使い方:
+#     qrun-setup [<image-tag>]
+#
+#       • <image-tag> を省略すると drun-default:latest が使われます
+#       • Dockerfile はこのスクリプトと同じディレクトリに置くこと
+#
+set -euo pipefail
+
+# --- 定数 ---------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_TAG="drun-default:latest"         # 省略時に使うタグ
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/drun"
+IMAGE_TAG="${1:-$DEFAULT_TAG}"            # 1 引数目があればタグに採用
+
+# Dockerfile の存在確認
+if [[ ! -f "$SCRIPT_DIR/Dockerfile" ]]; then
+  echo "❌  $SCRIPT_DIR に Dockerfile が見つかりません。" >&2
+  exit 1
+fi
+
+echo "🔨  Building image '$IMAGE_TAG' from $SCRIPT_DIR/Dockerfile ..."
+docker build -t "$IMAGE_TAG" "$SCRIPT_DIR"
+
+# 設定ファイルにタグを書き込み
+mkdir -p "$CONFIG_DIR"
+echo "$IMAGE_TAG" > "$CONFIG_DIR/image_tag"
+
+echo "✅  ビルド完了: $IMAGE_TAG"
+echo "   今後 drun はこのイメージを既定として使用します。"

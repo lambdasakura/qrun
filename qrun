@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# qrun ― “docker run here” with custom default image
+#
+# 使い方:
+#   qrun [<image[:tag]>] [<command> ...]
+#     イメージ省略時は qrun-setup で登録したものを使用。
+#
+set -euo pipefail
+
+# ---- 既定イメージを取得 ---------------------------------------------
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/qrun"
+DEFAULT_IMAGE_FILE="$CONFIG_DIR/image_tag"
+DEFAULT_IMAGE="$( [[ -f $DEFAULT_IMAGE_FILE ]] && cat "$DEFAULT_IMAGE_FILE" || echo "" )"
+
+# ---- 引数解析 --------------------------------------------------------
+if [[ $# -eq 0 ]]; then
+  IMAGE="$DEFAULT_IMAGE"
+  CMD=(bash)
+else
+  case "$1" in *:*|*/*) IMAGE="$1"; shift ;; *) IMAGE="$DEFAULT_IMAGE" ;; esac
+  CMD=( "${#}" != 0 ? "$@" : bash )
+fi
+
+# ---- 既定イメージが未登録／未ビルドなら警告 --------------------------
+if [[ -z "$IMAGE" ]]; then
+  echo "❌  既定イメージが登録されていません。まず qrun-setup を実行してください。" >&2
+  exit 2
+fi
+
+if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "❌  イメージ '$IMAGE' が存在しません。qrun-setup でビルドしてください。" >&2
+  exit 3
+fi
+
+# ---- 起動 ------------------------------------------------------------
+WORKDIR_IN_CONTAINER="/workspace"
+HOST_DIR="$(pwd)"
+UID_GID="$(id -u):$(id -g)"
+CONTAINER_NAME="qrun-$(basename "$HOST_DIR" | tr -c 'a-zA-Z0-9_' '_')"
+
+docker run --rm -it \
+  --name "$CONTAINER_NAME" \
+  -v "${HOST_DIR}:${WORKDIR_IN_CONTAINER}" \
+  -w "${WORKDIR_IN_CONTAINER}" \
+  --user "${UID_GID}" \
+  "$IMAGE" "${CMD[@]}"
